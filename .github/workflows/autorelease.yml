@@ -53,8 +53,11 @@ jobs:
       run: |
         docker build -t "$TAG:latest" .
         mkdir build -p && ls && pwd
-        CGO_ENABLED=0 GOOS=linux GOARCH=amd64   go build -o build/redial_proxy-linux-amd64       ./cmd/redial_proxy
-        CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/redial_proxy-windows-amd64.exe ./cmd/redial_proxy
+
+        export CGO_ENABLED=0
+        go tool dist list | grep -v wasm | while IFS=/ read -r GOOS GOARCH; do
+          go build -o build/redial_proxy-$GOOS-$GOARCH ./cmd/redial_proxy
+        done
 
     - name: Make release if everything looks right
       env:
