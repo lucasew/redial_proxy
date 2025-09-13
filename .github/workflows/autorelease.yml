@@ -54,9 +54,10 @@ jobs:
         docker build -t "$TAG:latest" .
         mkdir build -p && ls && pwd
 
+        echo "# Built targets" >> $GITHUB_SUMMARY
         export CGO_ENABLED=0
         go tool dist list | grep -v wasm | while IFS=/ read -r GOOS GOARCH; do
-          GOOS=$GOOS GOARCH=$GOARCH go build -o build/redial_proxy-$GOOS-$GOARCH ./cmd/redial_proxy
+          GOOS=$GOOS GOARCH=$GOARCH go build -o build/redial_proxy-$GOOS-$GOARCH ./cmd/redial_proxy && (echo "- $GOOS/$GOARCH" >> $GITHUB_SUMMARY) || true
         done
 
     - name: Make release if everything looks right
