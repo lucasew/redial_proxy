@@ -55,10 +55,13 @@ jobs:
         fi
 
     - name: Build binaries
+      env:
+        TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
       run: |
         mkdir build -p && ls && pwd
         go build -o build/redial_proxy-linux-amd64 ./cmd/redial_proxy/main.go
         GOOS=windows GOARCH=amd64 go build -o build/redial_proxy-windows-amd64.exe ./cmd/redial_proxy/main.go
+        docker build -t "$TAG:latest"
 
     - name: Make release if everything looks right
       env:
@@ -96,7 +99,7 @@ jobs:
       if: env.RELEASE_VERSION != ''
       run: |
         VERSION="$(cat version.txt)"
-        docker build -t "$TAG:$VERSION" .
-        docker tag "$TAG:$VERSION" "$TAG:latest"
+        docker build -t "$TAG:latest" .
+        docker tag  "$TAG:latest" "$TAG:$VERSION"
         docker push "$TAG:$VERSION"
         docker push "$TAG:latest"
