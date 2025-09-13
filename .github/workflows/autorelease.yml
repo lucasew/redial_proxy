@@ -56,7 +56,7 @@ jobs:
 
         export CGO_ENABLED=0
         go tool dist list | grep -v wasm | while IFS=/ read -r GOOS GOARCH; do
-          go build -o build/redial_proxy-$GOOS-$GOARCH ./cmd/redial_proxy
+          GOOS=$GOOS GOARCH=$GOARCH go build -o build/redial_proxy-$GOOS-$GOARCH ./cmd/redial_proxy
         done
 
     - name: Make release if everything looks right
