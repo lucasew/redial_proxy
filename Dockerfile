@@ -1,0 +1,13 @@
+FROM golang:1.25 AS build
+
+WORKDIR /app
+
+COPY . /app
+
+RUN CGO_ENABLED=0 go build -o app cmd/redial_proxy/main.go
+
+FROM scratch
+
+COPY --from=build /app/app /app
+
+ENTRYPOINT [ "/app" ]
