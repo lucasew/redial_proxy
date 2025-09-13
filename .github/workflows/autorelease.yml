@@ -19,13 +19,6 @@ jobs:
       IMAGE_NAME: ${{ github.repository }}
       USERNAME: ${{ github.actor }}
     steps:
-    - name: Login to registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ env.USERNAME }}
-        password: ${{ github.token }}
-
     - uses: actions/checkout@v5
     - name: Setup git config
       run: |
@@ -83,6 +76,14 @@ jobs:
         gh release create "$TAG" \
           --title "$TITLE" \
           --generate-notes
+
+    - name: Login to registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ env.USERNAME }}
+        password: ${{ github.token }}
+
 
     - uses: svenstaro/upload-release-action@v2
       if: env.RELEASE_VERSION != ''
