@@ -51,13 +51,18 @@ jobs:
       env:
         TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
       run: |
+        echo "::group::Build container"
         docker build -t "$TAG:latest" .
+        echo "::endgroup::"
+
         mkdir build -p && ls && pwd
 
         echo "# Built targets" >> $GITHUB_STEP_SUMMARY
         export CGO_ENABLED=0
         go tool dist list | grep -v wasm | while IFS=/ read -r GOOS GOARCH; do
-          GOOS=$GOOS GOARCH=$GOARCH go build -o build/redial_proxy-$GOOS-$GOARCH ./cmd/redial_proxy && (echo "- $GOOS/$GOARCH" >> $GITHUB_STEP_SUMMARY) || true
+          echo "::group::Build $GOOS/$GOARCH"
+          GOOS=$GOOS GOARCH=$GOARCH go build -v -o build/redial_proxy-$GOOS-$GOARCH ./cmd/redial_proxy && (echo "- $GOOS/$GOARCH" >> $GITHUB_STEP_SUMMARY) || true
+          echo "::endgroup::"
         done
 
     - name: Make release if everything looks right
@@ -104,7 +109,6 @@ jobs:
       if: env.RELEASE_VERSION != ''
       run: |
         VERSION="$(cat version.txt)"
-        docker build -t "$TAG:latest" .
         docker tag  "$TAG:latest" "$TAG:$VERSION"
         docker push "$TAG:$VERSION"
         docker push "$TAG:latest"
