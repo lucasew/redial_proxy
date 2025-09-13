@@ -10,7 +10,6 @@ import (
 
 	"log"
 
-	"blitiri.com.ar/go/systemd"
 	"github.com/armon/go-socks5"
 )
 
@@ -19,19 +18,6 @@ var PORT int
 func init() {
 	flag.IntVar(&PORT, "p", 8889, "port to listen the server")
 	flag.Parse()
-}
-
-func GetListener() (net.Listener, error) {
-	listeners, err := systemd.Listeners()
-	if err != nil {
-		return nil, err
-	}
-	for _, v := range listeners {
-		for _, listener := range v {
-			return listener, nil
-		}
-	}
-	return net.Listen("tcp", fmt.Sprintf(":%d", PORT))
 }
 
 func main() {
