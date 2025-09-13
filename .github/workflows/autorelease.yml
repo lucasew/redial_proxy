@@ -53,8 +53,13 @@ jobs:
           echo "The update scripts changed something and a PR was created. Giving up deploy." >> $GITHUB_STEP_SUMMARY
           exit 1
         fi
-    - run: mkdir build -p && ls && pwd
-    - run: GOOS=windows GOARCH=amd64 go build -o build/redial_proxy-windows-amd64.exe ./cmd/redial_proxy/main.go
+
+    - name: Build binaries
+      run: |
+        mkdir build -p && ls && pwd
+        go build -o build/redial_proxy-linux-amd64 ./cmd/redial_proxy/main.go
+        GOOS=windows GOARCH=amd64 go build -o build/redial_proxy-windows-amd64.exe ./cmd/redial_proxy/main.go
+
     - name: Make release if everything looks right
       env:
         NEW_VERSION: ${{ github.event.inputs.new_version }}
@@ -94,4 +99,4 @@ jobs:
         docker build -t "$TAG:$VERSION" .
         docker tag "$TAG:$VERSION" "$TAG:latest"
         docker push "$TAG:$VERSION"
-        docker push "$TAG:latest"   - run: go build -o build/redial_proxy-linux-amd64 ./cmd/redial_proxy/main.go
+        docker push "$TAG:latest"
