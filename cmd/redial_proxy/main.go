@@ -11,13 +11,15 @@ import (
 	"log"
 
 	"github.com/armon/go-socks5"
+	"github.com/lucasew/go-getlistener"
 )
 
-var PORT int
-
 func init() {
-	flag.IntVar(&PORT, "p", 8889, "port to listen the server")
+	flag.IntVar(&getlistener.PORT, "p", getlistener.PORT, "port to listen the server")
 	flag.Parse()
+	if getlistener.PORT == 0 {
+		getlistener.PORT = 8889
+	}
 }
 
 func main() {
@@ -54,11 +56,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ln, err := GetListener()
+	ln, err := getlistener.GetListener()
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("binding port %d...", PORT)
 	err = srv.Serve(ln)
 	if err != nil {
 		log.Fatal(err)
