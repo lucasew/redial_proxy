@@ -4,14 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
 	"net"
+	"os"
 	"strings"
 	"time"
 
-	"log"
-
-	"github.com/armon/go-socks5"
 	"github.com/lucasew/go-getlistener"
+	"github.com/things-go/go-socks5"
 )
 
 func init() {
@@ -24,8 +24,10 @@ func init() {
 
 func main() {
 	log.Printf("starting...")
-	sconfig := socks5.Config{
-		Dial: func(ctx context.Context, network, addr string) (net.Conn, error) {
+
+	// Create a SOCKS5 server options
+	opts := []socks5.Option{
+		socks5.WithDial(func(ctx context.Context, network, addr string) (net.Conn, error) {
 			try := 0
 			for {
 				select {
@@ -50,18 +52,30 @@ func main() {
 					return conn, err
 				}
 			}
-		},
+		}),
+		socks5.WithLogger(socks5.NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
 	}
-	srv, err := socks5.New(&sconfig)
-	if err != nil {
-		log.Fatal(err)
+
+	// Add username/password authentication if env vars are set.
+	// To enable authentication, set the PROXY_USERNAME and PROXY_PASSWORD environment variables.
+	username := os.Getenv("PROXY_USERNAME")
+	password := os.Getenv("PROXY_PASSWORD")
+	if username != "" && password != "" {
+		creds := make(socks5.StaticCredentials)
+		creds[username] = password
+		cator := socks5.UserPassAuthenticator{Credentials: creds}
+		opts = append(opts, socks5.WithAuthMethods([]socks5.Authenticator{cator}))
 	}
+
+	// Create the server
+	server := socks5.NewServer(opts...)
+
 	ln, err := getlistener.GetListener()
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = srv.Serve(ln)
-	if err != nil {
+
+	if err := server.Serve(ln); err != nil {
 		log.Fatal(err)
 	}
 }
