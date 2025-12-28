@@ -10,16 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lucasew/go-getlistener"
 	"github.com/things-go/go-socks5"
 )
 
+var port int
+
 func init() {
-	flag.IntVar(&getlistener.PORT, "p", getlistener.PORT, "port to listen the server")
+	flag.IntVar(&port, "p", 8889, "port to listen the server")
 	flag.Parse()
-	if getlistener.PORT == 0 {
-		getlistener.PORT = 8889
-	}
 }
 
 func main() {
@@ -56,21 +54,12 @@ func main() {
 		socks5.WithLogger(socks5.NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
 	}
 
-	// Add username/password authentication if env vars are set.
-	// To enable authentication, set the PROXY_USERNAME and PROXY_PASSWORD environment variables.
-	username := os.Getenv("PROXY_USERNAME")
-	password := os.Getenv("PROXY_PASSWORD")
-	if username != "" && password != "" {
-		creds := make(socks5.StaticCredentials)
-		creds[username] = password
-		cator := socks5.UserPassAuthenticator{Credentials: creds}
-		opts = append(opts, socks5.WithAuthMethods([]socks5.Authenticator{cator}))
-	}
-
 	// Create the server
 	server := socks5.NewServer(opts...)
 
-	ln, err := getlistener.GetListener()
+	listenAddr := fmt.Sprintf("127.0.0.1:%d", port)
+	log.Printf("SOCKS5 proxy listening on %s", listenAddr)
+	ln, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
