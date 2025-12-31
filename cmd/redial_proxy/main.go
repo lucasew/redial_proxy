@@ -18,11 +18,12 @@ func init() {
 	flag.IntVar(&getlistener.PORT, "p", getlistener.PORT, "port to listen the server")
 	flag.Parse()
 	if getlistener.PORT == 0 {
-		getlistener.PORT = 8889
+		getlistener.PORT = defaultPort
 	}
 }
 
 const (
+	defaultPort        = 8889
 	maxRetries         = 3
 	retrySleepDuration = 100 * time.Millisecond
 )
