@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -59,6 +60,24 @@ func main() {
 	sconfig := socks5.Config{
 		Dial: redial,
 	}
+
+	proxyUsername := os.Getenv("PROXY_USERNAME")
+	proxyPassword := os.Getenv("PROXY_PASSWORD")
+
+	// If both username and password are provided, enable authentication.
+	// This makes the authentication optional and avoids breaking existing setups.
+	if proxyUsername != "" && proxyPassword != "" {
+		log.Printf("authentication enabled")
+		cred := socks5.StaticCredentials{
+			proxyUsername: proxyPassword,
+		}
+		sconfig.AuthMethods = []socks5.Authenticator{
+			socks5.UserPassAuthenticator{
+				Credentials: cred,
+			},
+		}
+	}
+
 	srv, err := socks5.New(&sconfig)
 	if err != nil {
 		log.Fatal(err)
