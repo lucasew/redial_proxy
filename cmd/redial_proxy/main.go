@@ -16,9 +16,13 @@ import (
 
 func init() {
 	flag.IntVar(&getlistener.PORT, "p", getlistener.PORT, "port to listen the server")
+	flag.StringVar(&getlistener.HOST, "H", getlistener.HOST, "host to listen the server")
 	flag.Parse()
 	if getlistener.PORT == 0 {
 		getlistener.PORT = defaultPort
+	}
+	if getlistener.HOST == "" {
+		getlistener.HOST = "127.0.0.1"
 	}
 }
 
