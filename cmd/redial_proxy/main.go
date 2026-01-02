@@ -4,11 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net"
+	"os"
 	"strings"
 	"time"
-
-	"log"
 
 	"github.com/armon/go-socks5"
 	"github.com/lucasew/go-getlistener"
@@ -32,16 +32,16 @@ func redial(ctx context.Context, network, addr string) (net.Conn, error) {
 			}
 			conn, err := net.Dial(network, addr)
 			if err != nil {
-				log.Printf("conn err '%s'", err.Error())
+				slog.Warn("conn err", "err", err.Error())
 				if strings.Contains(err.Error(), "route") {
-					log.Printf("retrying connection to %s %s (%d)", network, addr, try)
+					slog.Info("retrying connection", "network", network, "addr", addr, "try", try)
 					time.Sleep(retrySleepDuration)
 					try++
 					continue
 				}
 				return nil, err
 			}
-			log.Printf("CONNECT %s %s", network, addr)
+			slog.Info("CONNECT", "network", network, "addr", addr)
 			return conn, err
 		}
 	}
@@ -53,20 +53,23 @@ func main() {
 	if getlistener.PORT == 0 {
 		getlistener.PORT = defaultPort
 	}
-	log.Printf("starting...")
+	slog.Info("starting...")
 	sconfig := socks5.Config{
 		Dial: redial,
 	}
 	srv, err := socks5.New(&sconfig)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("failed to create socks5 server", "err", err)
+		os.Exit(1)
 	}
 	ln, err := getlistener.GetListener()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("failed to get listener", "err", err)
+		os.Exit(1)
 	}
 	err = srv.Serve(ln)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("failed to serve", "err", err)
+		os.Exit(1)
 	}
 }
