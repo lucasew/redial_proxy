@@ -14,14 +14,6 @@ import (
 	"github.com/lucasew/go-getlistener"
 )
 
-func init() {
-	flag.IntVar(&getlistener.PORT, "p", getlistener.PORT, "port to listen the server")
-	flag.Parse()
-	if getlistener.PORT == 0 {
-		getlistener.PORT = defaultPort
-	}
-}
-
 const (
 	defaultPort        = 8889
 	maxRetries         = 3
@@ -56,6 +48,11 @@ func redial(ctx context.Context, network, addr string) (net.Conn, error) {
 }
 
 func main() {
+	flag.IntVar(&getlistener.PORT, "p", getlistener.PORT, "port to listen the server")
+	flag.Parse()
+	if getlistener.PORT == 0 {
+		getlistener.PORT = defaultPort
+	}
 	log.Printf("starting...")
 	sconfig := socks5.Config{
 		Dial: redial,
