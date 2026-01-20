@@ -22,29 +22,35 @@ const (
 )
 
 func redial(ctx context.Context, network, addr string) (net.Conn, error) {
+	var d net.Dialer
 	try := 0
 	for {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("timeout")
-		default:
-			if try > maxRetries {
-				return nil, fmt.Errorf("too many retries")
-			}
-			conn, err := net.Dial(network, addr)
-			if err != nil {
-				slog.Warn("conn err", "err", err.Error())
-				if strings.Contains(err.Error(), "route") {
-					slog.Info("retrying connection", "network", network, "addr", addr, "try", try)
-					time.Sleep(retrySleepDuration)
-					try++
-					continue
-				}
-				return nil, err
-			}
+		conn, err := d.DialContext(ctx, network, addr)
+		if err == nil {
 			slog.Info("CONNECT", "network", network, "addr", addr)
-			return conn, err
+			return conn, nil
 		}
+
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+
+		if try >= maxRetries {
+			return nil, fmt.Errorf("too many retries: %w", err)
+		}
+
+		slog.Warn("conn err", "err", err.Error())
+		if strings.Contains(err.Error(), "route") {
+			slog.Info("retrying connection", "network", network, "addr", addr, "try", try)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(retrySleepDuration):
+				try++
+				continue
+			}
+		}
+		return nil, err
 	}
 }
 
