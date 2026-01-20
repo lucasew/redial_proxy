@@ -14,7 +14,6 @@ import (
 	"github.com/lucasew/go-getlistener"
 )
 
-
 const (
 	defaultPort        = 8889
 	maxRetries         = 3
@@ -48,6 +47,22 @@ func redial(ctx context.Context, network, addr string) (net.Conn, error) {
 	}
 }
 
+func getSocksConfig() *socks5.Config {
+	conf := &socks5.Config{
+		Dial: redial,
+	}
+	username := os.Getenv("PROXY_USERNAME")
+	password := os.Getenv("PROXY_PASSWORD")
+	if username != "" && password != "" {
+		creds := socks5.StaticCredentials{
+			username: password,
+		}
+		conf.Credentials = creds
+		slog.Info("Authentication enabled")
+	}
+	return conf
+}
+
 func main() {
 	flag.IntVar(&getlistener.PORT, "p", getlistener.PORT, "port to listen the server")
 	flag.StringVar(&getlistener.HOST, "H", getlistener.HOST, "host to listen the server")
@@ -59,10 +74,8 @@ func main() {
 		getlistener.HOST = "127.0.0.1"
 	}
 	slog.Info("starting...")
-	sconfig := socks5.Config{
-		Dial: redial,
-	}
-	srv, err := socks5.New(&sconfig)
+	sconfig := getSocksConfig()
+	srv, err := socks5.New(sconfig)
 	if err != nil {
 		slog.Error("failed to create socks5 server", "err", err)
 		os.Exit(1)
