@@ -1,72 +1,41 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/armon/go-socks5"
 	"github.com/lucasew/go-getlistener"
+	"github.com/lucasew/redial_proxy/internal/dialer"
 )
-
 
 const (
-	defaultPort        = 8889
-	maxRetries         = 3
-	retrySleepDuration = 100 * time.Millisecond
+	defaultPort = 8889
 )
 
-func redial(ctx context.Context, network, addr string) (net.Conn, error) {
-	var d net.Dialer
-	try := 0
-	for {
-		conn, err := d.DialContext(ctx, network, addr)
-		if err == nil {
-			slog.Info("CONNECT", "network", network, "addr", addr)
-			return conn, nil
-		}
-
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-
-		if try >= maxRetries {
-			return nil, fmt.Errorf("too many retries: %w", err)
-		}
-
-		slog.Warn("conn err", "err", err.Error())
-		if strings.Contains(err.Error(), "route") {
-			slog.Info("retrying connection", "network", network, "addr", addr, "try", try)
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(retrySleepDuration):
-				try++
-				continue
-			}
-		}
-		return nil, err
-	}
-}
-
 func main() {
-	flag.IntVar(&getlistener.PORT, "p", getlistener.PORT, "port to listen the server")
-	flag.StringVar(&getlistener.HOST, "H", getlistener.HOST, "host to listen the server")
+	var port int
+	var host string
+	flag.IntVar(&port, "p", defaultPort, "port to listen the server")
+	flag.StringVar(&host, "H", "127.0.0.1", "host to listen the server")
 	flag.Parse()
-	if getlistener.PORT == 0 {
-		getlistener.PORT = defaultPort
-	}
-	if getlistener.HOST == "" {
-		getlistener.HOST = "127.0.0.1"
-	}
+
 	slog.Info("starting...")
+
+	// Pass configuration to getlistener via environment variables
+	os.Setenv("PORT", fmt.Sprintf("%d", port))
+	os.Setenv("HOST", host)
+
+	d := &dialer.Redialer{
+		MaxRetries: 3,
+		RetryDelay: 100 * time.Millisecond,
+	}
+
 	sconfig := socks5.Config{
-		Dial: redial,
+		Dial: d.DialContext,
 	}
 	srv, err := socks5.New(&sconfig)
 	if err != nil {

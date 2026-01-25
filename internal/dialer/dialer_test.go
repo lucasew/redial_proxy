@@ -1,4 +1,4 @@
-package main
+package dialer
 
 import (
 	"context"
@@ -15,8 +15,13 @@ func TestRedial_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
+	d := &Redialer{
+		MaxRetries: 3,
+		RetryDelay: 100 * time.Millisecond,
+	}
+
 	start := time.Now()
-	_, err := redial(ctx, "tcp", target)
+	_, err := d.DialContext(ctx, "tcp", target)
 	duration := time.Since(start)
 
 	if err == nil {
