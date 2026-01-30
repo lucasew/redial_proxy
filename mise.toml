@@ -1,2 +1,5 @@
 [tools]
 go = "1.25.6"
+
+[tasks]
+ci = { run = ["go test ./...", "go build ./cmd/redial_proxy"], env = { CGO_ENABLED = "0" } }
