@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -9,25 +8,18 @@ import (
 
 	"github.com/armon/go-socks5"
 	"github.com/lucasew/go-getlistener"
+	"github.com/lucasew/redial_proxy/internal/config"
 	"github.com/lucasew/redial_proxy/internal/dialer"
 )
 
-const (
-	defaultPort = 8889
-)
-
 func main() {
-	var port int
-	var host string
-	flag.IntVar(&port, "p", defaultPort, "port to listen the server")
-	flag.StringVar(&host, "H", "127.0.0.1", "host to listen the server")
-	flag.Parse()
+	cfg := config.Load()
 
 	slog.Info("starting...")
 
 	// Pass configuration to getlistener via environment variables
-	os.Setenv("PORT", fmt.Sprintf("%d", port))
-	os.Setenv("HOST", host)
+	os.Setenv("PORT", fmt.Sprintf("%d", cfg.Port))
+	os.Setenv("HOST", cfg.Host)
 
 	d := &dialer.Redialer{
 		MaxRetries: 3,
