@@ -1,7 +1,5 @@
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5/go.mod h1:wHh0iHkYZB8zMSxRWpUBQtwG5a7fFgvEO+odwuTv2gs=
-github.com/lucasew/go-getlistener v0.0.0-20250915012143-7174e68e781c h1:NuX5YKuxUI1Dwl4jBl8vyYEMdDIYCK20P6etQlesM7M=
-github.com/lucasew/go-getlistener v0.0.0-20250915012143-7174e68e781c/go.mod h1:v3krqX67UtY9S59I/WYBZeO9QP7E+el8Icim99QCdLs=
 github.com/lucasew/go-getlistener v0.0.0-20260116165611-8de8df50aaa9 h1:PNFgWGTm/aQ4X+IMEHYFQYZ3RqTH9NKMDOvfXKpip9w=
 github.com/lucasew/go-getlistener v0.0.0-20260116165611-8de8df50aaa9/go.mod h1:v3krqX67UtY9S59I/WYBZeO9QP7E+el8Icim99QCdLs=
 golang.org/x/net v0.44.0 h1:evd8IRDyfNBMBTTY5XRF1vaZlD+EmWx6x8PkhR04H/I=
