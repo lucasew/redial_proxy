@@ -1,2 +1,15 @@
 [tools]
 go = "1.25.6"
+golangci-lint = "latest"
+
+[tasks]
+install = "go mod download"
+codegen = "go generate ./..."
+"lint:golangci-lint" = "golangci-lint run"
+lint = { depends = ["lint:*"] }
+"fmt:goimports" = "go run golang.org/x/tools/cmd/goimports@latest -w ."
+fmt = { depends = ["fmt:*"] }
+test = "go test ./..."
+build = "go build -o build/redial_proxy ./cmd/redial_proxy"
+build-all = "bash scripts/build-all.sh"
+ci = { depends = ["lint", "test"] }
