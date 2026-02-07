@@ -10,6 +10,7 @@ import (
 	"github.com/armon/go-socks5"
 	"github.com/lucasew/go-getlistener"
 	"github.com/lucasew/redial_proxy/internal/dialer"
+	"github.com/lucasew/redial_proxy/internal/utils"
 )
 
 const (
@@ -26,8 +27,12 @@ func main() {
 	slog.Info("starting...")
 
 	// Pass configuration to getlistener via environment variables
-	os.Setenv("PORT", fmt.Sprintf("%d", port))
-	os.Setenv("HOST", host)
+	if err := os.Setenv("PORT", fmt.Sprintf("%d", port)); err != nil {
+		utils.ReportFatal(err, "failed to set PORT environment variable")
+	}
+	if err := os.Setenv("HOST", host); err != nil {
+		utils.ReportFatal(err, "failed to set HOST environment variable")
+	}
 
 	d := &dialer.Redialer{
 		MaxRetries: 3,
@@ -39,17 +44,14 @@ func main() {
 	}
 	srv, err := socks5.New(&sconfig)
 	if err != nil {
-		slog.Error("failed to create socks5 server", "err", err)
-		os.Exit(1)
+		utils.ReportFatal(err, "failed to create socks5 server")
 	}
 	ln, err := getlistener.GetListener()
 	if err != nil {
-		slog.Error("failed to get listener", "err", err)
-		os.Exit(1)
+		utils.ReportFatal(err, "failed to get listener")
 	}
 	err = srv.Serve(ln)
 	if err != nil {
-		slog.Error("failed to serve", "err", err)
-		os.Exit(1)
+		utils.ReportFatal(err, "failed to serve")
 	}
 }
