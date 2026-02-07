@@ -1,2 +1,27 @@
 [tools]
 go = "1.25.6"
+golangci-lint = "latest"
+
+[tasks.ci]
+depends = ["lint", "test", "build"]
+description = "Run all CI checks"
+
+[tasks.lint]
+run = "golangci-lint run"
+description = "Lint the code"
+
+[tasks.test]
+run = "go test -v ./..."
+description = "Run tests"
+
+[tasks.build]
+run = "go build -v ./..."
+description = "Build the project"
+
+[tasks.install]
+run = "go mod download"
+description = "Install dependencies"
+
+[tasks.fmt]
+run = "go fmt ./..."
+description = "Format code"

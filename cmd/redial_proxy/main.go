@@ -26,8 +26,14 @@ func main() {
 	slog.Info("starting...")
 
 	// Pass configuration to getlistener via environment variables
-	os.Setenv("PORT", fmt.Sprintf("%d", port))
-	os.Setenv("HOST", host)
+	if err := os.Setenv("PORT", fmt.Sprintf("%d", port)); err != nil {
+		slog.Error("failed to set PORT env", "err", err)
+		os.Exit(1)
+	}
+	if err := os.Setenv("HOST", host); err != nil {
+		slog.Error("failed to set HOST env", "err", err)
+		os.Exit(1)
+	}
 
 	d := &dialer.Redialer{
 		MaxRetries: 3,
