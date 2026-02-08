@@ -1,3 +1,9 @@
+// Package main implements the redial_proxy service, a SOCKS5 proxy server
+// with custom connection retry logic for handling routing errors.
+//
+// It accepts configuration via command-line flags for the listening address
+// and port, and relies on environment variables for listener configuration
+// (specifically PORT and HOST).
 package main
 
 import (
@@ -25,7 +31,8 @@ func main() {
 
 	slog.Info("starting...")
 
-	// Pass configuration to getlistener via environment variables
+	// Pass configuration to getlistener via environment variables, as it
+	// relies on PORT and HOST to configure the listener.
 	if err := os.Setenv("PORT", fmt.Sprintf("%d", port)); err != nil {
 		slog.Error("failed to set PORT env", "err", err)
 		os.Exit(1)
