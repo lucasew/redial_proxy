@@ -21,3 +21,15 @@
 **- Pattern:** Replacing specific SHA digests in Dockerfiles with mutable tags (e.g., `golang:1.25.6` instead of `golang:1.25@sha256:...`).
 **- Justification:** Pinned digests ensure reproducibility and security. Using mutable tags introduces risk. And there is Renovate to suggest dependency updates already.
 **- Files Affected:** `Dockerfile`
+
+## IGNORE: Misconfigured golangci-lint
+
+**- Pattern:** Removing `golangci-lint` from `[tools]` in `mise.toml` or attempting to install it via `go install` in tasks.
+**- Justification:** `golangci-lint` must be managed via `mise` tools and pinned to a specific version to ensure stability and proper integration with the development workflow.
+**- Files Affected:** `mise.toml`
+
+## IGNORE: Weakening CI Checks
+
+**- Pattern:** Removing critical steps (like `build`) from the `ci` task in `mise.toml`.
+**- Justification:** The `ci` task is explicitly defined to run `lint`, `test`, and `build`. Removing any of these steps compromises the verification process.
+**- Files Affected:** `mise.toml`
