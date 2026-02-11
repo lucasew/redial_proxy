@@ -6,5 +6,7 @@ github.com/lucasew/go-getlistener v0.0.0-20260116165611-8de8df50aaa9 h1:PNFgWGTm
 github.com/lucasew/go-getlistener v0.0.0-20260116165611-8de8df50aaa9/go.mod h1:v3krqX67UtY9S59I/WYBZeO9QP7E+el8Icim99QCdLs=
 github.com/lucasew/go-getlistener v0.0.0-20260204005754-ccf2e57ffe51 h1:k4bWuJNhtmsuxBb/SnZ986JEJ9HQzWQeiSmwtbplD58=
 github.com/lucasew/go-getlistener v0.0.0-20260204005754-ccf2e57ffe51/go.mod h1:v3krqX67UtY9S59I/WYBZeO9QP7E+el8Icim99QCdLs=
+github.com/lucasew/go-getlistener v0.0.0-20260210111027-4de8f1136397 h1:nKhVKWOcb+/gLSYkAiiqAtTE9rne5fntIOhpzLU0Gbw=
+github.com/lucasew/go-getlistener v0.0.0-20260210111027-4de8f1136397/go.mod h1:fiNB6DNrGKzsaEHQtOgO/G+8mwgKqy8N8ptQd+SKElU=
 golang.org/x/net v0.44.0 h1:evd8IRDyfNBMBTTY5XRF1vaZlD+EmWx6x8PkhR04H/I=
 golang.org/x/net v0.44.0/go.mod h1:ECOoLqd5U3Lhyeyo/QDCEVQ4sNgYsqvCZ722XogGieY=
