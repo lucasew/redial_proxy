@@ -5,8 +5,6 @@ browser showing a error like when you are without internet.
 
 This is my workaround try to solve my case and maybe yours too.
 
-This is simple enough to fit in only one file.
-
 Its basically a SOCKS5 proxy server with a custom dialer, that is the guy who is responsible to establishing the connection, 
 my custom dialer is a wrapper around the default dialer that retries the connection after 100ms if the error have route in its message.
 
