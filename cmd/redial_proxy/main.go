@@ -1,3 +1,7 @@
+// Package main is the entrypoint for the redial_proxy application.
+// It initializes a SOCKS5 proxy server bounded to the loopback interface,
+// equipped with a custom dialer (Redialer) that intercepts connection failures
+// and transparently retries requests when routing errors occur.
 package main
 
 import (
@@ -25,7 +29,9 @@ func main() {
 
 	slog.Info("starting...")
 
-	// Pass configuration to getlistener via environment variables
+	// go-getlistener library retrieves configuration strictly from environment variables.
+	// We parse standard command-line flags for user convenience and bridge them into
+	// the expected environment variables (PORT and HOST) before initializing the listener.
 	if err := os.Setenv("PORT", fmt.Sprintf("%d", port)); err != nil {
 		slog.Error("failed to set PORT env", "err", err)
 		os.Exit(1)

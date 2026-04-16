@@ -12,10 +12,13 @@ import (
 	"time"
 )
 
-// Redialer is a custom dialer that retries connections upon specific routing errors.
-// It wraps net.Dialer and automatically retries when the error message contains "route".
-// This is particularly useful in environments with transient network issues or strict routing rules
-// where initial attempts might fail before a route is established.
+// Redialer is a custom dialer that transparently intercepts and retries connection attempts
+// upon specific routing errors. It acts as a wrapper around the standard net.Dialer, triggering
+// an automatic backoff and retry loop whenever the resulting error message contains "route".
+// This component encapsulates the configuration state for the retry mechanism while remaining
+// stateless across individual request executions. It is specifically designed to mitigate
+// transient network issues or strict routing rules where initial attempts might fail before
+// a route is successfully established.
 type Redialer struct {
 	// MaxRetries is the maximum number of retry attempts before giving up.
 	// If set to 0, it will not retry (only the initial attempt is made).
@@ -24,15 +27,16 @@ type Redialer struct {
 	RetryDelay time.Duration
 }
 
-// DialContext connects to the address on the named network using net.Dialer.
+// DialContext connects to the target address on the specified network using an underlying net.Dialer.
 //
-// If the connection fails with an error string containing "route", it will retry
-// up to d.MaxRetries times, waiting d.RetryDelay between attempts.
+// Unlike the standard dialer, this method evaluates connection failures. If an error string contains
+// "route", it initiates a retry loop up to d.MaxRetries times, pausing for d.RetryDelay between attempts.
 //
-// It respects the provided context for cancellation both during the connection attempt
-// and the backoff period. If the context is canceled, the operation returns immediately.
+// To prevent hanging on cancelled requests, it strictly respects the provided context for cancellation
+// both during the active connection attempt and the subsequent backoff period. If the context signals
+// cancellation at any point, the operation aborts and returns immediately.
 //
-// Successful connections and retry attempts are logged using slog.
+// Both successful connections and active retry attempts are recorded using the structured logger (slog).
 func (d *Redialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	var dialer net.Dialer
 	try := 0
