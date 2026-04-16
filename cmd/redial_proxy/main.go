@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/armon/go-socks5"
@@ -26,7 +26,7 @@ func main() {
 	slog.Info("starting...")
 
 	// Pass configuration to getlistener via environment variables
-	if err := os.Setenv("PORT", fmt.Sprintf("%d", port)); err != nil {
+	if err := os.Setenv("PORT", strconv.Itoa(port)); err != nil {
 		slog.Error("failed to set PORT env", "err", err)
 		os.Exit(1)
 	}
@@ -40,10 +40,9 @@ func main() {
 		RetryDelay: 100 * time.Millisecond,
 	}
 
-	sconfig := socks5.Config{
+	srv, err := socks5.New(&socks5.Config{
 		Dial: d.DialContext,
-	}
-	srv, err := socks5.New(&sconfig)
+	})
 	if err != nil {
 		slog.Error("failed to create socks5 server", "err", err)
 		os.Exit(1)

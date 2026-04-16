@@ -8,3 +8,4 @@ This journal is for recording critical learnings about refactoring in this codeb
 **Root Cause:** `net.Dial` does not accept a context. The loop structure was checking context only between dial attempts.
 **Solution:** Replaced `net.Dial` with `net.Dialer{}.DialContext`. Simplified loop to respect context cancellation immediately and during retry sleep.
 **Pattern:** Always use `DialContext` (or context-aware functions) in long-running operations or network calls to ensure responsiveness to shutdown/timeout signals.
+- 2026-04-16: Prefer inline structs where they are only used once instead of creating temporary variables and use standard library functions like strconv.Itoa instead of fmt.Sprintf for simple conversions to improve performance and code clarity.
