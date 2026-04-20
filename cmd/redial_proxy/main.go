@@ -1,3 +1,7 @@
+// Package main implements a resilient SOCKS5 proxy server.
+// It uses a custom dialer that automatically retries connections
+// on routing errors, masking transient network failures from clients.
+// This proxy is specifically designed to run locally (binding to loopback).
 package main
 
 import (
@@ -13,9 +17,22 @@ import (
 )
 
 const (
+	// defaultPort is the port the SOCKS5 proxy will listen on if not specified.
 	defaultPort = 8889
 )
 
+// main is the entry point for the redial_proxy application.
+//
+// It performs the following setup:
+//  1. Parses command-line flags (-H for host, -p for port).
+//  2. Mutates environment variables (PORT, HOST) as a side-effect
+//     to configure the underlying go-getlistener package.
+//  3. Initializes a custom Redialer to handle transient routing errors.
+//  4. Starts a local SOCKS5 proxy server.
+//
+// Security Note: This proxy is strictly intended for local execution and
+// should only be bound to the loopback interface (e.g., 127.0.0.1) to
+// prevent unauthorized external access.
 func main() {
 	var port int
 	var host string

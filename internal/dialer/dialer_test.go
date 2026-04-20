@@ -1,3 +1,5 @@
+// Package dialer contains tests to verify the behavior of the Redialer component,
+// ensuring it properly retries connections and respects context cancellations.
 package dialer
 
 import (
@@ -6,6 +8,9 @@ import (
 	"time"
 )
 
+// TestRedial_ContextCancellation verifies that the Redialer immediately respects
+// context cancellation, even when attempting connections to unresponsive hosts.
+// It ensures the underlying net.Dialer does not block indefinitely when the context expires.
 func TestRedial_ContextCancellation(t *testing.T) {
 	// Use an IP that is likely to cause a timeout or at least delay.
 	// 192.0.2.1 is in TEST-NET-1.
