@@ -1,0 +1,1 @@
+- 2026-06-05: [Medium: unstructured third-party logs bypassing structured log format, spotting via missing io.Discard logger configuration]
