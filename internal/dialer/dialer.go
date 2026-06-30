@@ -51,13 +51,15 @@ func (d *Redialer) DialContext(ctx context.Context, network, addr string) (net.C
 			return nil, fmt.Errorf("too many retries: %w", err)
 		}
 
-		slog.Warn("conn err", "err", err.Error())
+		slog.Warn("conn err", "err", err)
 		if strings.Contains(err.Error(), "route") {
 			slog.Info("retrying connection", "network", network, "addr", addr, "try", try)
+			timer := time.NewTimer(d.RetryDelay)
 			select {
 			case <-ctx.Done():
+				timer.Stop()
 				return nil, ctx.Err()
-			case <-time.After(d.RetryDelay):
+			case <-timer.C:
 				try++
 				continue
 			}
