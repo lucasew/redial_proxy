@@ -1,0 +1,20 @@
+--- internal/dialer/dialer.go
++++ internal/dialer/dialer.go
+@@ -35,6 +35,8 @@
+ func (d *Redialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	var dialer net.Dialer
+	try := 0
++	timer := time.NewTimer(0)
++	<-timer.C // drain initial tick
+	for {
+		conn, err := dialer.DialContext(ctx, network, addr)
+		if err == nil {
+@@ -53,7 +55,7 @@
+		slog.Warn("conn err", "err", err)
+		if strings.Contains(err.Error(), "route") {
+			slog.Info("retrying connection", "network", network, "addr", addr, "try", try)
+-			timer := time.NewTimer(d.RetryDelay)
++			timer.Reset(d.RetryDelay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
