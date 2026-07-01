@@ -9,3 +9,4 @@ This journal is for recording critical learnings about refactoring in this codeb
 **Solution:** Replaced `net.Dial` with `net.Dialer{}.DialContext`. Simplified loop to respect context cancellation immediately and during retry sleep.
 **Pattern:** Always use `DialContext` (or context-aware functions) in long-running operations or network calls to ensure responsiveness to shutdown/timeout signals.
 - 2026-06-29: Centralizing error reporting with `os.Exit(1)` eliminates scattered early termination calls and standardizes error handling practices.
+- 2026-07-01: Exposed sensitive unstructured logs can bypass centralized structured logging and leak security metadata; silence them via io.Discard when using go-socks5.
