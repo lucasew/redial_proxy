@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"io"
+	"log"
 	"log/slog"
 	"os"
 	"strconv"
@@ -24,6 +26,10 @@ func main() {
 	flag.StringVar(&host, "H", "127.0.0.1", "host to listen the server")
 	flag.Parse()
 
+	if host != "127.0.0.1" && host != "localhost" {
+		slog.Warn("proxy bound to non-loopback interface, exposing to SSRF risks", "host", host)
+	}
+
 	slog.Info("starting...")
 
 	// Pass configuration to getlistener via environment variables
@@ -40,7 +46,8 @@ func main() {
 	}
 
 	sconfig := socks5.Config{
-		Dial: d.DialContext,
+		Dial:   d.DialContext,
+		Logger: log.New(io.Discard, "", 0),
 	}
 	srv, err := socks5.New(&sconfig)
 	if err != nil {
