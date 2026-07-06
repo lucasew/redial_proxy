@@ -7,4 +7,4 @@ require (
 	github.com/lucasew/go-getlistener v0.0.0-20260204005754-ccf2e57ffe51
 )
 
-require golang.org/x/net v0.44.0 // indirect
+require golang.org/x/net v0.55.0 // indirect
