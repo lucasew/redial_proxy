@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"io"
+	"log"
 	"log/slog"
 	"os"
 	"strconv"
@@ -14,7 +16,9 @@ import (
 )
 
 const (
-	defaultPort = 8889
+	defaultPort       = 8889
+	defaultMaxRetries = 3
+	defaultRetryDelay = 100 * time.Millisecond
 )
 
 func main() {
@@ -26,6 +30,10 @@ func main() {
 
 	slog.Info("starting...")
 
+	if host != "127.0.0.1" && host != "localhost" && host != "::1" {
+		slog.Warn("proxy is bound to a non-loopback network interface, exposing it to SSRF risks")
+	}
+
 	// Pass configuration to getlistener via environment variables
 	if err := os.Setenv("PORT", strconv.Itoa(port)); err != nil {
 		errorreport.ReportFatal("failed to set PORT env", err)
@@ -34,15 +42,13 @@ func main() {
 		errorreport.ReportFatal("failed to set HOST env", err)
 	}
 
-	d := &dialer.Redialer{
-		MaxRetries: 3,
-		RetryDelay: 100 * time.Millisecond,
-	}
-
-	sconfig := socks5.Config{
-		Dial: d.DialContext,
-	}
-	srv, err := socks5.New(&sconfig)
+	srv, err := socks5.New(&socks5.Config{
+		Dial: (&dialer.Redialer{
+			MaxRetries: defaultMaxRetries,
+			RetryDelay: defaultRetryDelay,
+		}).DialContext,
+		Logger: log.New(io.Discard, "", 0),
+	})
 	if err != nil {
 		errorreport.ReportFatal("failed to create socks5 server", err)
 	}
