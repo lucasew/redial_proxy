@@ -12,6 +12,13 @@ import (
 	"time"
 )
 
+const (
+	// DefaultMaxRetries is the default number of times to retry a connection.
+	DefaultMaxRetries = 3
+	// DefaultRetryDelay is the default duration to wait between retry attempts.
+	DefaultRetryDelay = 100 * time.Millisecond
+)
+
 // Redialer is a custom dialer that retries connections upon specific routing errors.
 // It wraps net.Dialer and automatically retries when the error message contains "route".
 // This is particularly useful in environments with transient network issues or strict routing rules

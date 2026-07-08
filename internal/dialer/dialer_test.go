@@ -6,18 +6,24 @@ import (
 	"time"
 )
 
+const (
+	testTarget         = "192.0.2.1:80"
+	testContextTimeout = 100 * time.Millisecond
+	testMaxDuration    = 2 * time.Second
+)
+
 func TestRedial_ContextCancellation(t *testing.T) {
 	// Use an IP that is likely to cause a timeout or at least delay.
 	// 192.0.2.1 is in TEST-NET-1.
-	target := "192.0.2.1:80"
+	target := testTarget
 
 	// Set a short timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), testContextTimeout)
 	defer cancel()
 
 	d := &Redialer{
-		MaxRetries: 3,
-		RetryDelay: 100 * time.Millisecond,
+		MaxRetries: DefaultMaxRetries,
+		RetryDelay: DefaultRetryDelay,
 	}
 
 	start := time.Now()
@@ -31,7 +37,7 @@ func TestRedial_ContextCancellation(t *testing.T) {
 	// If redial respects context, it should return roughly around 100ms.
 	// If it blocks on net.Dial (which has default system timeout ~30s+), it will take much longer
 	// IF the network drops packets. If it rejects immediately, this test passes either way.
-	if duration > 2*time.Second {
+	if duration > testMaxDuration {
 		t.Errorf("redial took too long: %v, expected ~100ms", duration)
 	}
 

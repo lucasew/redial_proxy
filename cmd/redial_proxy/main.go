@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/armon/go-socks5"
 	"github.com/lucasew/go-getlistener"
@@ -35,8 +34,8 @@ func main() {
 	}
 
 	d := &dialer.Redialer{
-		MaxRetries: 3,
-		RetryDelay: 100 * time.Millisecond,
+		MaxRetries: dialer.DefaultMaxRetries,
+		RetryDelay: dialer.DefaultRetryDelay,
 	}
 
 	sconfig := socks5.Config{
