@@ -39,10 +39,9 @@ func main() {
 		RetryDelay: 100 * time.Millisecond,
 	}
 
-	sconfig := socks5.Config{
+	srv, err := socks5.New(&socks5.Config{
 		Dial: d.DialContext,
-	}
-	srv, err := socks5.New(&sconfig)
+	})
 	if err != nil {
 		errorreport.ReportFatal("failed to create socks5 server", err)
 	}
