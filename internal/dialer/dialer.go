@@ -22,6 +22,10 @@ type Redialer struct {
 	MaxRetries int
 	// RetryDelay is the duration to wait between retry attempts.
 	RetryDelay time.Duration
+
+	// dial, when non-nil, replaces the default net.Dialer DialContext.
+	// Intended for tests; production code leaves this nil.
+	dial func(ctx context.Context, network, addr string) (net.Conn, error)
 }
 
 // DialContext connects to the address on the named network using net.Dialer.
@@ -34,10 +38,9 @@ type Redialer struct {
 //
 // Successful connections and retry attempts are logged using slog.
 func (d *Redialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
-	var dialer net.Dialer
 	try := 0
 	for {
-		conn, err := dialer.DialContext(ctx, network, addr)
+		conn, err := d.doDial(ctx, network, addr)
 		if err == nil {
 			slog.Info("CONNECT", "network", network, "addr", addr)
 			return conn, nil
@@ -52,7 +55,7 @@ func (d *Redialer) DialContext(ctx context.Context, network, addr string) (net.C
 		}
 
 		slog.Warn("conn err", "err", err)
-		if strings.Contains(err.Error(), "route") {
+		if isRouteError(err) {
 			slog.Info("retrying connection", "network", network, "addr", addr, "try", try)
 			timer := time.NewTimer(d.RetryDelay)
 			select {
@@ -66,4 +69,19 @@ func (d *Redialer) DialContext(ctx context.Context, network, addr string) (net.C
 		}
 		return nil, err
 	}
+}
+
+func (d *Redialer) doDial(ctx context.Context, network, addr string) (net.Conn, error) {
+	if d.dial != nil {
+		return d.dial(ctx, network, addr)
+	}
+	var dialer net.Dialer
+	return dialer.DialContext(ctx, network, addr)
+}
+
+// isRouteError reports whether err looks like a transient routing failure
+// that is worth retrying. Matching is substring-based on the error text
+// (same heuristic the proxy has always used).
+func isRouteError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "route")
 }
