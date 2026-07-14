@@ -1,21 +1,43 @@
 # redial_proxy
 
-Sometimes the internet here is a bit buggy, that kind of bug like sites not loading CSS at the first try or even the
-browser showing a error like when you are without internet.
+Sometimes the internet here is a bit buggy — sites not loading CSS on the first
+try, or the browser showing errors as if you were offline.
 
-This is my workaround try to solve my case and maybe yours too.
+This is a small SOCKS5 proxy with a custom dialer that retries when the error
+looks like a routing failure (message contains `route`), waiting 100ms between
+attempts by default.
 
-This is simple enough to fit in only one file.
+It is intended for local use only (loopback). See `AGENTS.md`.
 
-Its basically a SOCKS5 proxy server with a custom dialer, that is the guy who is responsible to establishing the connection, 
-my custom dialer is a wrapper around the default dialer that retries the connection after 100ms if the error have route in its message.
+## Layout
 
-This is my best bet without working with the anoying bureaucracy with people that are not solving my problem.
+- `cmd/redial_proxy` — CLI entrypoint
+- `internal/dialer` — retrying dialer
+- `internal/errorreport` — fatal error helper
 
 ## Installing
 
-- Mise
-
 ```
 mise use github:lucasew/redial_proxy
+```
+
+## Running
+
+```
+redial_proxy -h
+```
+
+Useful flags:
+
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `-p` | `8889` | listen port |
+| `-H` | `127.0.0.1` | listen host (keep loopback) |
+| `-retries` | `3` | max dial retries on route-like errors |
+| `-retry-delay` | `100ms` | delay between dial retries |
+
+## Development
+
+```
+mise run ci   # lint, test, build
 ```
