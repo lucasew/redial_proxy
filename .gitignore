@@ -1,4 +1,5 @@
-result
-build
-main
-redial_proxy
+# Local build outputs at repo root (do not ignore package dirs like cmd/redial_proxy)
+/result
+/build/
+/main
+/redial_proxy
