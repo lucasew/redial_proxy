@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"log/slog"
@@ -24,11 +25,22 @@ const (
 func main() {
 	var port int
 	var host string
+	var maxRetries int
+	var retryDelay time.Duration
 	flag.IntVar(&port, "p", defaultPort, "port to listen the server")
 	flag.StringVar(&host, "H", "127.0.0.1", "host to listen the server")
+	flag.IntVar(&maxRetries, "retries", defaultMaxRetries, "max dial retries on route-like errors")
+	flag.DurationVar(&retryDelay, "retry-delay", defaultRetryDelay, "delay between dial retries")
 	flag.Parse()
 
-	slog.Info("starting...")
+	if maxRetries < 0 {
+		errorreport.ReportFatal("invalid -retries", fmt.Errorf("must be >= 0, got %d", maxRetries))
+	}
+	if retryDelay < 0 {
+		errorreport.ReportFatal("invalid -retry-delay", fmt.Errorf("must be >= 0, got %v", retryDelay))
+	}
+
+	slog.Info("starting...", "retries", maxRetries, "retry_delay", retryDelay)
 
 	if host != "127.0.0.1" && host != "localhost" && host != "::1" {
 		slog.Warn("proxy is bound to a non-loopback network interface, exposing it to SSRF risks")
@@ -44,8 +56,8 @@ func main() {
 
 	srv, err := socks5.New(&socks5.Config{
 		Dial: (&dialer.Redialer{
-			MaxRetries: defaultMaxRetries,
-			RetryDelay: defaultRetryDelay,
+			MaxRetries: maxRetries,
+			RetryDelay: retryDelay,
 		}).DialContext,
 		Logger: log.New(io.Discard, "", 0),
 	})
