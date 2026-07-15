@@ -5,16 +5,19 @@ package dialer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"strings"
+	"syscall"
 	"time"
 )
 
 // Redialer is a custom dialer that retries connections upon specific routing errors.
 // It wraps net.Dialer and retries when isRouteError reports a transient routing
-// failure. Useful when the first dial fails before a route is ready.
+// failure (host/network unreachable). Useful when the first dial fails before a
+// route is ready.
 type Redialer struct {
 	// MaxRetries is the maximum number of retry attempts after the first try.
 	// If set to 0, only the initial attempt is made.
@@ -84,8 +87,24 @@ func (d *Redialer) doDial(ctx context.Context, network, addr string) (net.Conn, 
 }
 
 // isRouteError reports whether err looks like a transient routing failure
-// that is worth retrying. Matching is substring-based on the error text
-// (same heuristic the proxy has always used).
+// worth retrying (host/network unreachable).
+//
+// Preference order:
+//  1. syscall errno when present (EHOSTUNREACH / ENETUNREACH), including when
+//     wrapped in *net.OpError / *os.SyscallError.
+//  2. Case-insensitive match on well-known phrases — not a bare "route"
+//     substring, which false-positive on dial errors whose address contains
+//     "route" (e.g. route.example.com: connection refused).
 func isRouteError(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "route")
+	if err == nil {
+		return false
+	}
+	var errno syscall.Errno
+	if errors.As(err, &errno) {
+		return errno == syscall.EHOSTUNREACH || errno == syscall.ENETUNREACH
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "no route to host") ||
+		strings.Contains(msg, "network is unreachable") ||
+		strings.Contains(msg, "host is unreachable")
 }
