@@ -118,6 +118,57 @@ func TestDialContext_NonRouteErrorDoesNotRetry(t *testing.T) {
 	}
 }
 
+func TestDialContext_MaxRetriesZeroNonRouteReturnsBareError(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	wantErr := errors.New("connection refused")
+	d := &Redialer{
+		MaxRetries: 0,
+		RetryDelay: 50 * time.Millisecond,
+		dial: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			calls.Add(1)
+			return nil, wantErr
+		},
+	}
+	_, err := d.DialContext(context.Background(), "tcp", "example.com:80")
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("err=%v want %v", err, wantErr)
+	}
+	// Regression: old control flow hit try >= MaxRetries before isRouteError and
+	// wrapped every first failure as "too many retries", even with MaxRetries=0
+	// and a non-route error.
+	if err != nil && err.Error() != wantErr.Error() {
+		t.Fatalf("err=%q want bare %q (no retry-exhaustion wrap)", err, wantErr)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("dial calls=%d want 1", calls.Load())
+	}
+}
+
+func TestDialContext_MaxRetriesZeroRouteErrorNoRetry(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	routeErr := errors.New("no route to host")
+	d := &Redialer{
+		MaxRetries: 0,
+		RetryDelay: 50 * time.Millisecond,
+		dial: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			calls.Add(1)
+			return nil, routeErr
+		},
+	}
+	_, err := d.DialContext(context.Background(), "tcp", "example.com:80")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, routeErr) {
+		t.Fatalf("err=%v want wrap of %v", err, routeErr)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("dial calls=%d want 1 (MaxRetries=0 means no retry)", calls.Load())
+	}
+}
+
 func TestDialContext_ExhaustsMaxRetriesOnRouteErrors(t *testing.T) {
 	t.Parallel()
 	var calls atomic.Int32
