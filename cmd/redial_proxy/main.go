@@ -6,8 +6,10 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/armon/go-socks5"
@@ -17,6 +19,7 @@ import (
 )
 
 const (
+	defaultHost       = "127.0.0.1"
 	defaultPort       = 8889
 	defaultMaxRetries = 3
 	defaultRetryDelay = 100 * time.Millisecond
@@ -28,7 +31,7 @@ func main() {
 	var maxRetries int
 	var retryDelay time.Duration
 	flag.IntVar(&port, "p", defaultPort, "port to listen the server")
-	flag.StringVar(&host, "H", "127.0.0.1", "host to listen the server")
+	flag.StringVar(&host, "H", defaultHost, "host to listen the server")
 	flag.IntVar(&maxRetries, "retries", defaultMaxRetries, "max dial retries on route-like errors")
 	flag.DurationVar(&retryDelay, "retry-delay", defaultRetryDelay, "delay between dial retries")
 	flag.Parse()
@@ -42,7 +45,7 @@ func main() {
 
 	slog.Info("starting...", "retries", maxRetries, "retry_delay", retryDelay)
 
-	if host != "127.0.0.1" && host != "localhost" && host != "::1" {
+	if !isLoopbackHost(host) {
 		slog.Warn("proxy is bound to a non-loopback network interface, exposing it to SSRF risks")
 	}
 
@@ -72,4 +75,15 @@ func main() {
 	if err != nil {
 		errorreport.ReportFatal("failed to serve", err)
 	}
+}
+
+// isLoopbackHost reports whether host is a loopback address or the
+// conventional "localhost" name. Used to warn when -H exposes the proxy
+// beyond the intended local-only bind (see AGENTS.md).
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
