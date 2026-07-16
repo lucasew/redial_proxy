@@ -1,0 +1,15 @@
+# Keep the build context small and rebuilds focused on source.
+.git
+.github
+.jules
+.grok
+build
+result
+**/__debug_bin*
+*.md
+.dockerignore
+Dockerfile
+make_release
+version.txt
+renovate.json
+.gitignore
