@@ -13,12 +13,11 @@ import (
 )
 
 // Redialer is a custom dialer that retries connections upon specific routing errors.
-// It wraps net.Dialer and automatically retries when the error message contains "route".
-// This is particularly useful in environments with transient network issues or strict routing rules
-// where initial attempts might fail before a route is established.
+// It wraps net.Dialer and retries when isRouteError reports a transient routing
+// failure. Useful when the first dial fails before a route is ready.
 type Redialer struct {
-	// MaxRetries is the maximum number of retry attempts before giving up.
-	// If set to 0, it will not retry (only the initial attempt is made).
+	// MaxRetries is the maximum number of retry attempts after the first try.
+	// If set to 0, only the initial attempt is made.
 	MaxRetries int
 	// RetryDelay is the duration to wait between retry attempts.
 	RetryDelay time.Duration
@@ -30,11 +29,14 @@ type Redialer struct {
 
 // DialContext connects to the address on the named network using net.Dialer.
 //
-// If the connection fails with an error string containing "route", it will retry
-// up to d.MaxRetries times, waiting d.RetryDelay between attempts.
+// If the connection fails with a route-like error (see isRouteError), it retries
+// up to d.MaxRetries times, waiting d.RetryDelay between attempts. Non-route
+// errors are returned immediately and are never wrapped as "too many retries".
+// MaxRetries 0 means a single attempt only.
 //
-// It respects the provided context for cancellation both during the connection attempt
-// and the backoff period. If the context is canceled, the operation returns immediately.
+// It respects the provided context for cancellation both during the connection
+// attempt and the backoff period. If the context is canceled, the operation
+// returns immediately.
 //
 // Successful connections and retry attempts are logged using slog.
 func (d *Redialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -50,24 +52,26 @@ func (d *Redialer) DialContext(ctx context.Context, network, addr string) (net.C
 			return nil, ctx.Err()
 		}
 
+		slog.Warn("conn err", "err", err)
+		// Non-route failures are final: do not wrap them as retry exhaustion.
+		if !isRouteError(err) {
+			return nil, err
+		}
+
 		if try >= d.MaxRetries {
 			return nil, fmt.Errorf("too many retries: %w", err)
 		}
 
-		slog.Warn("conn err", "err", err)
-		if isRouteError(err) {
-			slog.Info("retrying connection", "network", network, "addr", addr, "try", try)
-			timer := time.NewTimer(d.RetryDelay)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return nil, ctx.Err()
-			case <-timer.C:
-				try++
-				continue
-			}
+		slog.Info("retrying connection", "network", network, "addr", addr, "try", try)
+		timer := time.NewTimer(d.RetryDelay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+			try++
+			continue
 		}
-		return nil, err
 	}
 }
 
