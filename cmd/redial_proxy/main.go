@@ -32,8 +32,8 @@ func main() {
 	var retryDelay time.Duration
 	flag.IntVar(&port, "p", defaultPort, "port to listen the server")
 	flag.StringVar(&host, "H", defaultHost, "host to listen the server")
-	flag.IntVar(&maxRetries, "retries", defaultMaxRetries, "max dial retries on route-like errors")
-	flag.DurationVar(&retryDelay, "retry-delay", defaultRetryDelay, "delay between dial retries")
+	flag.IntVar(&maxRetries, "retries", defaultMaxRetries, "max dial/DNS retries on transient failures")
+	flag.DurationVar(&retryDelay, "retry-delay", defaultRetryDelay, "delay between dial/DNS retries")
 	flag.Parse()
 
 	if maxRetries < 0 {
@@ -61,12 +61,21 @@ func main() {
 		errorreport.ReportFatal("failed to set HOST env", err)
 	}
 
+	// go-socks5 resolves FQDNs before Dial via NameResolver. The stock
+	// DNSResolver uses net.ResolveIPAddr (no context, no retry), so flaky
+	// DNS hangs or fails once without ever reaching the redialer. Share the
+	// dial retry budget and bound each lookup attempt.
+	resolver := &dialer.RetryResolver{
+		MaxRetries: maxRetries,
+		RetryDelay: retryDelay,
+	}
 	srv, err := socks5.New(&socks5.Config{
 		Dial: (&dialer.Redialer{
 			MaxRetries: maxRetries,
 			RetryDelay: retryDelay,
 		}).DialContext,
-		Logger: log.New(io.Discard, "", 0),
+		Resolver: resolver,
+		Logger:   log.New(io.Discard, "", 0),
 	})
 	if err != nil {
 		errorreport.ReportFatal("failed to create socks5 server", err)
