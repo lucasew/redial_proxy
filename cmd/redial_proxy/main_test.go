@@ -1,6 +1,13 @@
 package main
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"net"
+	"sync/atomic"
+	"testing"
+	"time"
+)
 
 func TestIsLoopbackHost(t *testing.T) {
 	t.Parallel()
@@ -63,5 +70,61 @@ func TestHostForGetListener(t *testing.T) {
 				t.Fatalf("hostForGetListener(%q)=%q want %q", tc.in, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestWithDialTimeout_DisablesWhenNonPositive(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	base := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		calls.Add(1)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		// no deadline expected when timeout is disabled
+		if _, ok := ctx.Deadline(); ok {
+			t.Fatal("unexpected deadline on context")
+		}
+		return nil, errors.New("done")
+	}
+	for _, timeout := range []time.Duration{0, -time.Second} {
+		calls.Store(0)
+		dial := withDialTimeout(timeout, base)
+		_, err := dial(context.Background(), "tcp", "example.com:80")
+		if err == nil || err.Error() != "done" {
+			t.Fatalf("timeout=%v err=%v", timeout, err)
+		}
+		if calls.Load() != 1 {
+			t.Fatalf("timeout=%v calls=%d", timeout, calls.Load())
+		}
+	}
+}
+
+func TestWithDialTimeout_EnforcesDeadline(t *testing.T) {
+	t.Parallel()
+	base := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// block until canceled by the wrapper deadline
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	dial := withDialTimeout(40*time.Millisecond, base)
+	start := time.Now()
+	_, err := dial(context.Background(), "tcp", "example.com:80")
+	elapsed := time.Since(start)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err=%v want context.DeadlineExceeded", err)
+	}
+	if elapsed < 20*time.Millisecond {
+		t.Fatalf("elapsed=%v, deadline returned too early", elapsed)
+	}
+	if elapsed > 500*time.Millisecond {
+		t.Fatalf("elapsed=%v, expected ~40ms deadline", elapsed)
+	}
+}
+
+func TestWithDialTimeout_NilDial(t *testing.T) {
+	t.Parallel()
+	if got := withDialTimeout(time.Second, nil); got != nil {
+		t.Fatalf("got non-nil dial func for nil input")
 	}
 }
