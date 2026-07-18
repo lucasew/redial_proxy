@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -19,10 +20,11 @@ import (
 )
 
 const (
-	defaultHost       = "127.0.0.1"
-	defaultPort       = 8889
-	defaultMaxRetries = 3
-	defaultRetryDelay = 100 * time.Millisecond
+	defaultHost        = "127.0.0.1"
+	defaultPort        = 8889
+	defaultMaxRetries  = 3
+	defaultRetryDelay  = 100 * time.Millisecond
+	defaultDialTimeout = 10 * time.Second
 )
 
 func main() {
@@ -30,10 +32,12 @@ func main() {
 	var host string
 	var maxRetries int
 	var retryDelay time.Duration
+	var dialTimeout time.Duration
 	flag.IntVar(&port, "p", defaultPort, "port to listen the server")
 	flag.StringVar(&host, "H", defaultHost, "host to listen the server")
 	flag.IntVar(&maxRetries, "retries", defaultMaxRetries, "max dial/DNS retries on transient failures")
 	flag.DurationVar(&retryDelay, "retry-delay", defaultRetryDelay, "delay between dial/DNS retries")
+	flag.DurationVar(&dialTimeout, "dial-timeout", defaultDialTimeout, "max time for an outbound dial including retries (0 disables)")
 	flag.Parse()
 
 	if maxRetries < 0 {
@@ -42,8 +46,11 @@ func main() {
 	if retryDelay < 0 {
 		errorreport.ReportFatal("invalid -retry-delay", fmt.Errorf("must be >= 0, got %v", retryDelay))
 	}
+	if dialTimeout < 0 {
+		errorreport.ReportFatal("invalid -dial-timeout", fmt.Errorf("must be >= 0, got %v", dialTimeout))
+	}
 
-	slog.Info("starting...", "retries", maxRetries, "retry_delay", retryDelay)
+	slog.Info("starting...", "retries", maxRetries, "retry_delay", retryDelay, "dial_timeout", dialTimeout)
 
 	if !isLoopbackHost(host) {
 		slog.Warn("proxy is bound to a non-loopback network interface, exposing it to SSRF risks")
@@ -69,11 +76,18 @@ func main() {
 		MaxRetries: maxRetries,
 		RetryDelay: retryDelay,
 	}
+	redialer := &dialer.Redialer{
+		MaxRetries: maxRetries,
+		RetryDelay: retryDelay,
+	}
+	// go-socks5 dials with context.Background() and no deadline, so a
+	// blackholed destination can block a SOCKS handler until the OS TCP
+	// timeout (often minutes). Bound the full outbound dial (including
+	// redialer retries) here.
+	dial := withDialTimeout(dialTimeout, redialer.DialContext)
+
 	srv, err := socks5.New(&socks5.Config{
-		Dial: (&dialer.Redialer{
-			MaxRetries: maxRetries,
-			RetryDelay: retryDelay,
-		}).DialContext,
+		Dial:     dial,
 		Resolver: resolver,
 		Logger:   log.New(io.Discard, "", 0),
 	})
@@ -87,6 +101,23 @@ func main() {
 	err = srv.Serve(ln)
 	if err != nil {
 		errorreport.ReportFatal("failed to serve", err)
+	}
+}
+
+// withDialTimeout returns a Dial function that cancels ctx after timeout.
+// timeout <= 0 leaves the dial unbounded (previous behavior).
+// The budget covers the full Redialer.DialContext call, including retries.
+func withDialTimeout(timeout time.Duration, dial func(context.Context, string, string) (net.Conn, error)) func(context.Context, string, string) (net.Conn, error) {
+	if dial == nil {
+		return nil
+	}
+	if timeout <= 0 {
+		return dial
+	}
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		ctx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		return dial(ctx, network, addr)
 	}
 }
 
