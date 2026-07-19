@@ -222,3 +222,60 @@ func TestRetryResolver_EmptyResult(t *testing.T) {
 		t.Fatal("expected error for empty address list")
 	}
 }
+
+func TestPickIP(t *testing.T) {
+	t.Parallel()
+	v4a := net.ParseIP("1.2.3.4")
+	v4b := net.ParseIP("5.6.7.8")
+	v6a := net.ParseIP("2001:db8::1")
+	v6b := net.ParseIP("2001:db8::2")
+
+	cases := []struct {
+		name  string
+		addrs []net.IPAddr
+		want  net.IP
+	}{
+		{"empty", nil, nil},
+		{"ipv4 only", []net.IPAddr{{IP: v4a}}, v4a},
+		{"ipv6 only", []net.IPAddr{{IP: v6a}}, v6a},
+		{"ipv6 first dual-stack prefers v4", []net.IPAddr{{IP: v6a}, {IP: v4a}}, v4a},
+		{"ipv4 first dual-stack keeps first v4", []net.IPAddr{{IP: v4a}, {IP: v6a}, {IP: v4b}}, v4a},
+		{"multiple v6 no v4", []net.IPAddr{{IP: v6a}, {IP: v6b}}, v6a},
+		{"nil IP entries skipped", []net.IPAddr{{IP: nil}, {IP: v6a}, {IP: v4a}}, v4a},
+		{"all nil", []net.IPAddr{{IP: nil}}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := pickIP(tc.addrs)
+			if tc.want == nil {
+				if got != nil {
+					t.Fatalf("pickIP=%v want nil", got)
+				}
+				return
+			}
+			if got == nil || !got.Equal(tc.want) {
+				t.Fatalf("pickIP=%v want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestRetryResolver_PrefersIPv4WhenDualStack(t *testing.T) {
+	t.Parallel()
+	v4 := net.ParseIP("93.184.216.34")
+	v6 := net.ParseIP("2606:2800:220:1:248:1893:25c8:1946")
+	r := &RetryResolver{
+		lookup: func(ctx context.Context, host string) ([]net.IPAddr, error) {
+			// AAAA-first ordering is common; socks5 would previously dial only v6.
+			return []net.IPAddr{{IP: v6}, {IP: v4}}, nil
+		},
+	}
+	_, ip, err := r.Resolve(context.Background(), "example.com")
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	if !ip.Equal(v4) {
+		t.Fatalf("ip=%v want IPv4 %v", ip, v4)
+	}
+}
