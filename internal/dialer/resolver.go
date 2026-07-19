@@ -35,8 +35,10 @@ type RetryResolver struct {
 	lookup func(ctx context.Context, host string) ([]net.IPAddr, error)
 }
 
-// Resolve looks up name and returns one IP (first result), matching the
-// single-address behavior of socks5's default DNSResolver.
+// Resolve looks up name and returns one IP for go-socks5 (which dials a single
+// address). When the lookup returns both families, IPv4 is preferred: this
+// proxy targets flaky consumer networks where broken IPv6 is common and
+// socks5 has no Happy Eyeballs fallback.
 //
 // Temporary / timeout DNS errors are retried up to MaxRetries times with
 // RetryDelay between attempts. Permanent errors (e.g. NXDOMAIN) and context
@@ -46,10 +48,11 @@ func (r *RetryResolver) Resolve(ctx context.Context, name string) (context.Conte
 	for {
 		addrs, err := r.doLookup(ctx, name)
 		if err == nil {
-			if len(addrs) == 0 {
+			ip := pickIP(addrs)
+			if ip == nil {
 				return ctx, nil, fmt.Errorf("no addresses for %s", name)
 			}
-			return ctx, addrs[0].IP, nil
+			return ctx, ip, nil
 		}
 
 		if ctx.Err() != nil {
@@ -102,6 +105,30 @@ func (r *RetryResolver) attemptContext(ctx context.Context) (context.Context, co
 		return ctx, nil
 	}
 	return context.WithTimeout(ctx, timeout)
+}
+
+// pickIP chooses one address from LookupIPAddr results.
+// Prefer the first IPv4 address when any exist; otherwise the first result.
+// go-socks5 only dials a single IP, so an IPv6-first ordering on dual-stack
+// names often blackholes clients on networks with broken IPv6 routing.
+func pickIP(addrs []net.IPAddr) net.IP {
+	if len(addrs) == 0 {
+		return nil
+	}
+	for _, a := range addrs {
+		if a.IP == nil {
+			continue
+		}
+		if a.IP.To4() != nil {
+			return a.IP
+		}
+	}
+	for _, a := range addrs {
+		if a.IP != nil {
+			return a.IP
+		}
+	}
+	return nil
 }
 
 // isRetriableDNSError reports whether err looks like a transient DNS failure
