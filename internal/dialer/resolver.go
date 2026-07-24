@@ -91,12 +91,13 @@ func (r *RetryResolver) doLookup(ctx context.Context, name string) ([]net.IPAddr
 	return net.DefaultResolver.LookupIPAddr(attemptCtx, name)
 }
 
-// attemptContext applies a per-attempt timeout when the parent has no deadline
-// and Timeout is non-negative.
+// attemptContext applies a per-attempt timeout when Timeout is non-negative.
+//
+// The bound is applied even if the parent already has a deadline: a single hung
+// LookupIPAddr must not consume the entire parent window and starve retries.
+// context.WithTimeout still respects an earlier parent deadline, so this never
+// extends the caller's budget.
 func (r *RetryResolver) attemptContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	if _, ok := ctx.Deadline(); ok {
-		return ctx, nil
-	}
 	timeout := r.Timeout
 	if timeout == 0 {
 		timeout = DefaultResolveTimeout

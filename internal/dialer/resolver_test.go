@@ -179,6 +179,53 @@ func TestRetryResolver_PerAttemptTimeoutIsRetried(t *testing.T) {
 	}
 }
 
+// Regression: when the parent already has a deadline, attemptContext used to
+// return that parent as-is, so one hung lookup could burn the whole parent
+// window and leave no time for retries. Per-attempt Timeout must still apply.
+func TestRetryResolver_PerAttemptTimeoutWithParentDeadline(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	want := net.ParseIP("1.1.1.1")
+	r := &RetryResolver{
+		MaxRetries: 2,
+		RetryDelay: time.Millisecond,
+		Timeout:    25 * time.Millisecond,
+		lookup: func(ctx context.Context, host string) ([]net.IPAddr, error) {
+			n := calls.Add(1)
+			if n == 1 {
+				// Parent budget is long; without a per-attempt bound this would
+				// block until the parent deadline (~500ms) instead of ~25ms.
+				start := time.Now()
+				<-ctx.Done()
+				elapsed := time.Since(start)
+				if elapsed > 150*time.Millisecond {
+					t.Errorf("first attempt waited %v, want ~per-attempt timeout", elapsed)
+				}
+				return nil, ctx.Err()
+			}
+			return []net.IPAddr{{IP: want}}, nil
+		},
+	}
+	parent, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, ip, err := r.Resolve(parent, "parent-deadline.example")
+	elapsed := time.Since(start)
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	if !ip.Equal(want) {
+		t.Fatalf("ip=%v want %v", ip, want)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("calls=%d want 2", calls.Load())
+	}
+	// First attempt ~25ms + retry delay + second attempt immediate success.
+	if elapsed > 200*time.Millisecond {
+		t.Fatalf("elapsed=%v, expected quick per-attempt timeout + retry", elapsed)
+	}
+}
+
 func TestRetryResolver_ParentCancelDuringBackoff(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
