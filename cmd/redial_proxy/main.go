@@ -33,11 +33,13 @@ func main() {
 	var maxRetries int
 	var retryDelay time.Duration
 	var dialTimeout time.Duration
+	var allowNonLoopback bool
 	flag.IntVar(&port, "p", defaultPort, "port to listen the server")
 	flag.StringVar(&host, "H", defaultHost, "host to listen the server")
 	flag.IntVar(&maxRetries, "retries", defaultMaxRetries, "max dial/DNS retries on transient failures")
 	flag.DurationVar(&retryDelay, "retry-delay", defaultRetryDelay, "delay between dial/DNS retries")
 	flag.DurationVar(&dialTimeout, "dial-timeout", defaultDialTimeout, "max time for an outbound dial including retries (0 disables)")
+	flag.BoolVar(&allowNonLoopback, "allow-non-loopback", false, "allow -H outside loopback (SSRF risk; default refuse)")
 	flag.Parse()
 
 	if maxRetries < 0 {
@@ -49,10 +51,14 @@ func main() {
 	if dialTimeout < 0 {
 		errorreport.ReportFatal("invalid -dial-timeout", fmt.Errorf("must be >= 0, got %v", dialTimeout))
 	}
+	if err := checkListenHost(host, allowNonLoopback); err != nil {
+		errorreport.ReportFatal("invalid -H", err)
+	}
 
 	slog.Info("starting...", "retries", maxRetries, "retry_delay", retryDelay, "dial_timeout", dialTimeout)
 
 	if !isLoopbackHost(host) {
+		// Only reachable with -allow-non-loopback.
 		slog.Warn("proxy is bound to a non-loopback network interface, exposing it to SSRF risks")
 	}
 
@@ -121,9 +127,22 @@ func withDialTimeout(timeout time.Duration, dial func(context.Context, string, s
 	}
 }
 
+// checkListenHost enforces AGENTS.md: the proxy is for same-machine use and
+// must not listen on non-loopback interfaces unless the operator opts in.
+// Non-loopback binds turn the proxy into an open SOCKS egress (SSRF assist).
+func checkListenHost(host string, allowNonLoopback bool) error {
+	if isLoopbackHost(host) {
+		return nil
+	}
+	if allowNonLoopback {
+		return nil
+	}
+	return fmt.Errorf("%q is not a loopback address; pass -allow-non-loopback to override (SSRF risk)", host)
+}
+
 // isLoopbackHost reports whether host is a loopback address or the
-// conventional "localhost" name. Used to warn when -H exposes the proxy
-// beyond the intended local-only bind (see AGENTS.md).
+// conventional "localhost" name. Used to refuse (or warn when overridden)
+// when -H exposes the proxy beyond the intended local-only bind (see AGENTS.md).
 // Accepts optional brackets and IPv6 zone IDs (e.g. "[::1]", "::1%lo").
 func isLoopbackHost(host string) bool {
 	if strings.EqualFold(host, "localhost") {

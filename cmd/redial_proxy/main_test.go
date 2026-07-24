@@ -46,6 +46,40 @@ func TestIsLoopbackHost(t *testing.T) {
 	}
 }
 
+func TestCheckListenHost(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name             string
+		host             string
+		allowNonLoopback bool
+		wantErr          bool
+	}{
+		{"loopback ok", "127.0.0.1", false, false},
+		{"localhost ok", "localhost", false, false},
+		{"ipv6 loopback ok", "::1", false, false},
+		{"refuse 0.0.0.0", "0.0.0.0", false, true},
+		{"refuse lan", "192.168.1.1", false, true},
+		{"refuse public", "8.8.8.8", false, true},
+		{"refuse hostname", "example.com", false, true},
+		{"override 0.0.0.0", "0.0.0.0", true, false},
+		{"override lan", "192.168.0.10", true, false},
+		// Override still ok for loopback (no-op).
+		{"override loopback", "127.0.0.1", true, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := checkListenHost(tc.host, tc.allowNonLoopback)
+			if tc.wantErr && err == nil {
+				t.Fatalf("checkListenHost(%q, allow=%v)=nil want error", tc.host, tc.allowNonLoopback)
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("checkListenHost(%q, allow=%v)=%v want nil", tc.host, tc.allowNonLoopback, err)
+			}
+		})
+	}
+}
+
 func TestHostForGetListener(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
