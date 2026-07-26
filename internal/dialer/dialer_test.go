@@ -54,7 +54,7 @@ func TestDialContext_SuccessFirstAttempt(t *testing.T) {
 			return stubConn{}, nil
 		},
 	}
-	conn, err := d.DialContext(context.Background(), "tcp", "example.com:80")
+	conn, err := d.DialContext(t.Context(), "tcp", "example.com:80")
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestDialContext_RetriesRouteErrorThenSucceeds(t *testing.T) {
 			return stubConn{}, nil
 		},
 	}
-	conn, err := d.DialContext(context.Background(), "tcp", "example.com:80")
+	conn, err := d.DialContext(t.Context(), "tcp", "example.com:80")
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestDialContext_NonRouteErrorDoesNotRetry(t *testing.T) {
 		},
 	}
 	start := time.Now()
-	_, err := d.DialContext(context.Background(), "tcp", "example.com:80")
+	_, err := d.DialContext(t.Context(), "tcp", "example.com:80")
 	elapsed := time.Since(start)
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("err=%v want %v", err, wantErr)
@@ -130,7 +130,7 @@ func TestDialContext_MaxRetriesZeroNonRouteReturnsBareError(t *testing.T) {
 			return nil, wantErr
 		},
 	}
-	_, err := d.DialContext(context.Background(), "tcp", "example.com:80")
+	_, err := d.DialContext(t.Context(), "tcp", "example.com:80")
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("err=%v want %v", err, wantErr)
 	}
@@ -157,7 +157,7 @@ func TestDialContext_MaxRetriesZeroRouteErrorNoRetry(t *testing.T) {
 			return nil, routeErr
 		},
 	}
-	_, err := d.DialContext(context.Background(), "tcp", "example.com:80")
+	_, err := d.DialContext(t.Context(), "tcp", "example.com:80")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -181,7 +181,7 @@ func TestDialContext_ExhaustsMaxRetriesOnRouteErrors(t *testing.T) {
 			return nil, routeErr
 		},
 	}
-	_, err := d.DialContext(context.Background(), "tcp", "example.com:80")
+	_, err := d.DialContext(t.Context(), "tcp", "example.com:80")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -196,7 +196,7 @@ func TestDialContext_ExhaustsMaxRetriesOnRouteErrors(t *testing.T) {
 
 func TestDialContext_ContextCanceledDuringDial(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	d := &Redialer{
 		MaxRetries: 3,
 		RetryDelay: time.Millisecond,
@@ -213,7 +213,7 @@ func TestDialContext_ContextCanceledDuringDial(t *testing.T) {
 
 func TestDialContext_ContextCanceledDuringBackoff(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	var calls atomic.Int32
 	d := &Redialer{
 		MaxRetries: 3,
@@ -247,7 +247,7 @@ func TestRedial_ContextCancellation_Integration(t *testing.T) {
 	// 192.0.2.1 is TEST-NET-1; may time out or reject quickly depending on host routing.
 	target := "192.0.2.1:80"
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 
 	d := &Redialer{

@@ -50,7 +50,7 @@ func TestRetryResolver_SuccessFirstAttempt(t *testing.T) {
 			return []net.IPAddr{{IP: want}}, nil
 		},
 	}
-	_, ip, err := r.Resolve(context.Background(), "example.com")
+	_, ip, err := r.Resolve(t.Context(), "example.com")
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}
@@ -78,7 +78,7 @@ func TestRetryResolver_RetriesTemporaryThenSucceeds(t *testing.T) {
 			return []net.IPAddr{{IP: want}}, nil
 		},
 	}
-	_, ip, err := r.Resolve(context.Background(), "flaky.example")
+	_, ip, err := r.Resolve(t.Context(), "flaky.example")
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}
@@ -104,7 +104,7 @@ func TestRetryResolver_NXDOMAINDoesNotRetry(t *testing.T) {
 		},
 	}
 	start := time.Now()
-	_, _, err := r.Resolve(context.Background(), "missing.example")
+	_, _, err := r.Resolve(t.Context(), "missing.example")
 	elapsed := time.Since(start)
 	if !errors.Is(err, wantErr) {
 		// DNSError may not chain via Is; compare message path
@@ -134,7 +134,7 @@ func TestRetryResolver_ExhaustsMaxRetries(t *testing.T) {
 			return nil, temp
 		},
 	}
-	_, _, err := r.Resolve(context.Background(), "x.example")
+	_, _, err := r.Resolve(t.Context(), "x.example")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -167,7 +167,7 @@ func TestRetryResolver_PerAttemptTimeoutIsRetried(t *testing.T) {
 			return []net.IPAddr{{IP: want}}, nil
 		},
 	}
-	_, ip, err := r.Resolve(context.Background(), "slow.example")
+	_, ip, err := r.Resolve(t.Context(), "slow.example")
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}
@@ -181,7 +181,7 @@ func TestRetryResolver_PerAttemptTimeoutIsRetried(t *testing.T) {
 
 func TestRetryResolver_ParentCancelDuringBackoff(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	var calls atomic.Int32
 	r := &RetryResolver{
 		MaxRetries: 3,
@@ -217,7 +217,7 @@ func TestRetryResolver_EmptyResult(t *testing.T) {
 			return nil, nil
 		},
 	}
-	_, _, err := r.Resolve(context.Background(), "empty.example")
+	_, _, err := r.Resolve(t.Context(), "empty.example")
 	if err == nil {
 		t.Fatal("expected error for empty address list")
 	}
@@ -271,7 +271,7 @@ func TestRetryResolver_PrefersIPv4WhenDualStack(t *testing.T) {
 			return []net.IPAddr{{IP: v6}, {IP: v4}}, nil
 		},
 	}
-	_, ip, err := r.Resolve(context.Background(), "example.com")
+	_, ip, err := r.Resolve(t.Context(), "example.com")
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}

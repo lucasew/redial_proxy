@@ -90,7 +90,7 @@ func TestWithDialTimeout_DisablesWhenNonPositive(t *testing.T) {
 	for _, timeout := range []time.Duration{0, -time.Second} {
 		calls.Store(0)
 		dial := withDialTimeout(timeout, base)
-		_, err := dial(context.Background(), "tcp", "example.com:80")
+		_, err := dial(t.Context(), "tcp", "example.com:80")
 		if err == nil || err.Error() != "done" {
 			t.Fatalf("timeout=%v err=%v", timeout, err)
 		}
@@ -109,7 +109,7 @@ func TestWithDialTimeout_EnforcesDeadline(t *testing.T) {
 	}
 	dial := withDialTimeout(40*time.Millisecond, base)
 	start := time.Now()
-	_, err := dial(context.Background(), "tcp", "example.com:80")
+	_, err := dial(t.Context(), "tcp", "example.com:80")
 	elapsed := time.Since(start)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("err=%v want context.DeadlineExceeded", err)
