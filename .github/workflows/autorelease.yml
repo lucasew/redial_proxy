@@ -33,7 +33,7 @@ jobs:
         git config user.name actions-bot
         git config user.email actions-bot@users.noreply.github.com
 
-    - uses: jdx/mise-action@6d1e696aa24c1aa1bcc1adea0212707c71ab78a8 # v3
+    - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4
 
     - name: Create Pull Request if there is new stuff from updaters
       if: github.event_name != 'pull_request'
