@@ -5,7 +5,9 @@ import (
 	"errors"
 	"io"
 	"net"
+	"os"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -29,9 +31,21 @@ func TestIsRouteError(t *testing.T) {
 		want bool
 	}{
 		{"nil", nil, false},
-		{"route substring", errors.New("network is unreachable: no route to host"), true},
-		{"case sensitive Route", errors.New("no Route to host"), false},
+		{"no route to host", errors.New("dial tcp 1.2.3.4:80: connect: no route to host"), true},
+		{"network is unreachable", errors.New("dial tcp 1.2.3.4:80: connect: network is unreachable"), true},
+		{"host is unreachable", errors.New("dial tcp 1.2.3.4:80: connect: host is unreachable"), true},
+		{"case insensitive phrase", errors.New("No Route To Host"), true},
+		// Hostnames that contain "route" must not force a retry on unrelated errors.
+		{"hostname contains route", errors.New("dial tcp route.example.com:443: connect: connection refused"), false},
 		{"unrelated", errors.New("connection refused"), false},
+		{"ehostunreach", &os.SyscallError{Syscall: "connect", Err: syscall.EHOSTUNREACH}, true},
+		{"enetunreach", &os.SyscallError{Syscall: "connect", Err: syscall.ENETUNREACH}, true},
+		{"econnrefused errno", &os.SyscallError{Syscall: "connect", Err: syscall.ECONNREFUSED}, false},
+		{"wrapped operror", &net.OpError{
+			Op:  "dial",
+			Net: "tcp",
+			Err: &os.SyscallError{Syscall: "connect", Err: syscall.EHOSTUNREACH},
+		}, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -115,6 +129,28 @@ func TestDialContext_NonRouteErrorDoesNotRetry(t *testing.T) {
 	}
 	if elapsed > 40*time.Millisecond {
 		t.Fatalf("elapsed=%v suggests unexpected backoff", elapsed)
+	}
+}
+
+func TestDialContext_HostnameContainingRouteDoesNotRetry(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	// Mimic net.Dialer error text that embeds the dial target in the message.
+	wantErr := errors.New("dial tcp route.example.com:443: connect: connection refused")
+	d := &Redialer{
+		MaxRetries: 5,
+		RetryDelay: 50 * time.Millisecond,
+		dial: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			calls.Add(1)
+			return nil, wantErr
+		},
+	}
+	_, err := d.DialContext(context.Background(), "tcp", "route.example.com:443")
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("err=%v want %v", err, wantErr)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("dial calls=%d want 1 (hostname 'route' must not trigger retry)", calls.Load())
 	}
 }
 
