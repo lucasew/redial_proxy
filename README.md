@@ -9,7 +9,8 @@ attempts by default. DNS lookups use the same retry budget and a per-attempt
 timeout (socks5 resolves hostnames before dialing). Outbound dials are bounded
 by a default 10s budget (including retries).
 
-It is intended for local use only (loopback). See `AGENTS.md`.
+It is intended for local use only (loopback). Non-loopback `-H` values are
+refused unless you pass `-allow-non-loopback` (SSRF risk). See `AGENTS.md`.
 
 ## Layout
 
@@ -34,7 +35,8 @@ Useful flags:
 | Flag | Default | Meaning |
 |------|---------|---------|
 | `-p` | `8889` | listen port |
-| `-H` | `127.0.0.1` | listen host (keep loopback) |
+| `-H` | `127.0.0.1` | listen host (loopback only by default) |
+| `-allow-non-loopback` | `false` | permit non-loopback `-H` (SSRF risk) |
 | `-retries` | `3` | max dial/DNS retries on transient failures |
 | `-retry-delay` | `100ms` | delay between dial/DNS retries |
 | `-dial-timeout` | `10s` | max time for an outbound dial including retries (`0` disables) |
